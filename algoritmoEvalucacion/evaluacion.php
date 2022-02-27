@@ -1,79 +1,94 @@
 <?php
-//Algoritmo de renking de usuarios
+require("generateFunctions.php");
 
-/*Variables consideradas para cada video subido por el usuario
-    S+ = estrellas positivas
-    S- = estrellas negativas
-    Sv = reproducciones del video
-*/
-$users = ["Pancho","Juan","Ana","Alex","Karla","Kevin","Jhon","Paco","Alexis","Carlos","NewUser1","NewUser2","NewUser3"];//select * in user
+//Algoritmo de ranking de usuarios
+
 //en la BD se hara un select por cada usuario, pero aqui no.
-$userVideos = [
-    ["Pancho",100,5,2,"A"],
-    ["Juan",50,15,2,0,"A"],
-    ["Pancho",80,20,12,"A"],
-    ["Alex",29,13,8,"A"],
-    ["Karla",102,12,20,"B"],
-    ["Kevin",150,50,10,"A"],
-    ["Jhon",110,20,10,"A"],
-    ["Paco",68,10,12,"A"],
-    ["Alexis",290,30,8,"A"],
-    ["Carlos",95,23,2,"B"],
-];
+$names = ["Pancho","Juan","Ana","Alex","Karla","Kevin","Jhon","Paco","Alexis","Carlos","Kim","Chris","Leo","Sol","Noel"];//select * in user
 
-$userEval = [
-    ["Pancho",50,5,2,"A"],
-    ["Juan",500,15,2,0,"A"],
-    ["Ana",50,20,12,"A"],
-    ["Alex",290,13,8,"A"],
-    ["Karla",202,12,20,"B"],
-    ["Kevin",53,12,2,"A"],
-    ["Jhon",200,25,5,"A"],
-    ["Paco",180,40,20,"A"],
-    ["Alexis",75,10,12,"A"],
-    ["Carlos",20,5,2,"B"],
-];
+//Si se crean muchos usuarios y pocos videos entonces es más probable que haya usuarios sin videos entonces serán sin Rango
+
+/*
+    
+    createUsers retorna una matriz 
+*/
+$lista = createUsers($names, 100, 150);
+$userVideos = createVideos($lista, 100, 100, 2000, 50);
+$userEval = createVideos($lista, 80, 100, 1500, 80);
+
+//comprobar si usuarios se repiten. cuando ocurre genera errores. esto no importara cuando exista una BD de verdad.
+for($i=0; $i<count($lista); $i++){
+    for($j=$i+1; $j<count($lista); $j++){
+        if($lista[$i] == $lista[$j]){
+            echo "el usuario ".$lista[$i]." se repite<br>";
+        }
+    }
+}
+
 //las solicitudes a la BD se hacen antes de este punto
 $p = 0.6;
-rankUsers($users, $userVideos, $userEval, $p, 7);
 
+rankUsers($lista, $userVideos, $userEval, $p, 13);
+
+/**
+ * Ordena y devuelve una cantidad de usuarios para que evaluen.
+ * 
+ * @param array $users lista de usuarios.
+ * @param array $userVideos lista de videos de los usuarios con sus datos.
+ * @param array $userEval lista de videos que los usuarios han evaluado.
+ * @param double $p valor entre 0 y 1.
+ * @param int $cantUser cantidad de usuarios que quiere recibir de retorno.
+ * @return array arreglo con los usuarios que validadran el video.
+ */
 function rankUsers($users, $userVideos, $userEval, $p, $cantUser){
     for($user=0; $user < count($users); $user++){
 
         $id = $users[$user];
+        $name = $id["name"];
 
         $videoEvalS = evaluar($id, $userVideos);
         $videoEvalV = evaluar($id, $userEval);
     
-        echo "----------".$id."----------<br>";
+        /*echo "----------".$id["name"]."----------<br>";
         echo "Valor de S = ".$videoEvalS."<br>";   
-        echo "Valor de V = ".$videoEvalV."<br>";
+        echo "Valor de V = ".$videoEvalV."<br>";*/
 
         $q = 1 - $p;
+
         // formula 3: cu = s*p + v*q
-        $cu[$id]["cu"] = ($videoEvalS*$p) + ($videoEvalV*$q);
-        $cu[$id]["id"] = $id;
-        echo "Valor de CU = ".$cu[$id]["cu"]."<br>";
+        $cu[$name]["cu"] = ($videoEvalS*$p) + ($videoEvalV*$q);
+        $cu[$name]["vistas"] = $id["userView"];
+        $cu[$name]["id"] = $name;
+
+        //echo "Valor de CU = ".$cu[$name]["cu"]."<br>";
     }
 
-    rsort($cu);//mayor a menor
-    echo "<br>";
+    rsort($cu);//funcion que ordena de mayor a menor
+    //echo "<br>";
+    $i = 0;
+    //imprimimos el valor CU de los usuarios, el cual ya esta ordenado de mayor a menor
     foreach($cu as $value){
         echo "----------".$value["id"]."----------<br>";
-        echo "Valor de CU = ".$value["cu"]."<br>";
+        echo "Valor de CU = ".$value["cu"]."---------------------------------".$i++."<br>";
     }
 
     //rankings
     echo "----Rangos----<br>";
     $totUser = count($users);
+
+    /* 
+        se crean 2 listas, la $noRank la cual tiene los usuario que su valor CU es 0 pero que si han visto videos.
+        y los que tienen un CU != 0 se asignan a la lista $rank para proceder a asignarle un rango especifico.
+    */
     for($i = 0; $i < $totUser; $i++){
 
-        if($cu[$i]["cu"] == 0){//rango alto
+        if($cu[$i]["cu"] == 0 && $cu[$i]["vistas"] > 0){
             $noRank[] = $cu[$i]["id"];
         }else{
             $rank[] = $cu[$i]["id"];
         }
     }
+
     $totUser = count($rank);
 
     $alto = round($totUser * 0.5);// de 0 a X pos en el arreglo
@@ -87,17 +102,25 @@ function rankUsers($users, $userVideos, $userEval, $p, $cantUser){
             $midLowRank[] = $rank[$i];
         }
     }
+
+    //Recorriendo las listas que tienen a los usuarios rankeados
     echo "----Sin Rango----<br>";
-    foreach($noRank as $value){
-        echo "$value <br>";
+    if(count($noRank) > 0){
+        foreach($noRank as $value){
+            echo "$value <br>";
+        }
     }
     echo "----Rango Medio-Bajo----<br>";
-    foreach($midLowRank as $value){
-        echo "$value <br>";
+    if(count($midLowRank) > 0){
+        foreach($midLowRank as $value){
+            echo "$value <br>";
+        }
     }
     echo "----Rango Alto----<br>";
-    foreach($highRank as $value){
-        echo "$value <br>";
+    if(count($highRank) > 0){
+        foreach($highRank as $value){
+            echo "$value <br>";
+        }
     }
 
     //seccion de seleccion de usuarios por su ranking
@@ -105,12 +128,13 @@ function rankUsers($users, $userVideos, $userEval, $p, $cantUser){
     //cantidad de usuarios a escoguer por rango en base al parametro recividó. Alto 40%, Medio-Bajo 40%, sin rango 20%
     //si pide 3, entonces seran 1 altos 1 medio-bajo y 1 sin rango
     // 3*0.4 = 1.2 (se redondea a 1)      3*0.2= 0.6 (redondea a 1)
+    
+    //cantidad de usaurios que evaluaran por rango 
     $alto = round($cantUser * 0.4);
     $medioBajo = round($cantUser * 0.4);
     $sinRango = round($cantUser * 0.2);
 
-    //llamar a la funcion que regresa un arreglo aleatorio con los datos que le envie
-
+    //llamar a la funcion que regresa un arreglo aleatorio con las cantidades que le envie
     $testers = arregloAleatorio($highRank, $alto);
     //llamo a la misma funcion pero ahora concateno 2 arreglos, el de la linea anterior y el que recibo de la funcion
     $testers = array_merge($testers, arregloAleatorio($midLowRank, $medioBajo));
@@ -123,6 +147,13 @@ function rankUsers($users, $userVideos, $userEval, $p, $cantUser){
     //var_dump($testers);
 }
 
+/**
+ * Retorna X cantidad de datos dados por el usuario
+ * 
+ * @param array $arreglo arreglo donde se encuentran los datos que el usuario quiere randimizar.
+ * @param int $tam tamaño del arreglo que devolvera la funcion.
+ * @return array arreglo con tamaño X que incluyen datos aleatorios del $arreglo.
+ */
 function arregloAleatorio($arreglo, $tam){
 
     $newArray = [];
@@ -149,25 +180,38 @@ function arregloAleatorio($arreglo, $tam){
     return $newArray;
 }
 
+/**
+ * Evalua a los usuarios en base a unas formulas.
+ * 
+ * Formula para la evaluacion sin penalizacion
+ * formula 1: Si = Sv / (S+ - S-) 
+ * Se promedian las evaluaciones sin penalizacion de todos los videos subidos por el usuario
+ * formula 2: S = sumatoria de $videoEval / n
+ * 
+ * @param string $user nombre de usuario.
+ * @param array $userVideos lista de videos que el usuario ha subido o a evaluado.
+ * @param double valor de evaluacion.
+ */
 function evaluar($user, $userVideos){
-    $videoEval[$user]["eval"] = 0.0;
-    $videoEval[$user]["videos"] = 0.0;// cantidad de videos
-    $videoEval[$user]["videosDown"] = 0.0;// cantidad de videos dados de baja
+    $name = $user["name"];
+    $videoEval[$name]["eval"] = 0.0;
+    $videoEval[$name]["videos"] = 0.0;// cantidad de videos
+    $videoEval[$name]["videosDown"] = 0.0;// cantidad de videos dados de baja
 
     //echo "$users[$user]\n";
     for($video = 0; $video < count($userVideos); $video++){
-        if($user == $userVideos[$video][0]){
-
+        if($user["name"] == $userVideos[$video]["name"]){
+            
             /* 
-            Formula para la evaluacion sin penalizacion
-            formula 1: Si = Sv / (S+ - S-) 
+                Formula para la evaluacion sin penalizacion
+                formula 1: Si = Sv / (S+ - S-) 
             */
             
-            $videoEval[$user]["eval"] += $userVideos[$video][1] / ($userVideos[$video][2] - $userVideos[$video][3]);
-            $videoEval[$user]["videos"]++;
+            $videoEval[$name]["eval"] += $userVideos[$video]["view"] / ($userVideos[$video]["star+"] - $userVideos[$video]["star-"]);
+            $videoEval[$name]["videos"]++;
 
-            if($userVideos[$video][4] == "B"){
-                $videoEval[$user]["videosDown"]++;
+            if($userVideos[$video]["status"] == "B"){
+                $videoEval[$name]["videosDown"]++;
             }
             //echo $userVideos[$video][0];
         }
@@ -176,10 +220,9 @@ function evaluar($user, $userVideos){
     Se promedian las evaluaciones sin penalizacion de todos los videos subidos por el usuario
     formula 2: S = sumatoria de $videoEval / n
     */
-    if($videoEval[$user]["eval"] != 0){
-        $videoEval[$user]["eval"] = $videoEval[$user]["eval"] / $videoEval[$user]["videos"];
+    if($videoEval[$name]["eval"] != 0){
+        $videoEval[$name]["eval"] = $videoEval[$name]["eval"] / $videoEval[$name]["videos"];
     }
-    //echo $videoEval[$user][0]."    ".$videoEval[$user][1]."<br>";
 
     /*
         Algoritmo de penalizacion
@@ -193,12 +236,12 @@ function evaluar($user, $userVideos){
     */
     $Sp = 0.5;
     $i = 0;
-    while($i < $videoEval[$user]["videosDown"]){
-        $videoEval[$user]["eval"] -= ($videoEval[$user]["eval"] * $Sp);
+    while($i < $videoEval[$name]["videosDown"]){
+        $videoEval[$name]["eval"] -= ($videoEval[$name]["eval"] * $Sp);
         $i++;
     }
 
-    return $videoEval[$user]["eval"];
+    return $videoEval[$name]["eval"];
 }
 
 ?>
