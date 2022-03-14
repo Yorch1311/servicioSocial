@@ -26,11 +26,6 @@ function createVideos($users, $total, $maxStars, $maxViews){
 
         $posStar = rand(0, $maxStars);
         $negStars = rand(0, $maxStars);
-        //no pueden ser iguales porque sino genera error por dividir entre 0
-        while( $posStar == $negStars){
-            $posStar = rand(1, $maxStars);
-            $negStars = rand(0, $maxStars);
-        }
 
         $videoViews = rand(0, $maxViews) + $posStar; + $negStars;
 
@@ -43,7 +38,6 @@ function createVideos($users, $total, $maxStars, $maxViews){
         }else{
             $status = "A";
         }
-        
 
         $newVideo[$i]["name"] = $users[$owner]["name"];
         $newVideo[$i]["view"] = $videoViews;

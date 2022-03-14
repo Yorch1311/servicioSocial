@@ -206,8 +206,12 @@ function evaluar($user, $userVideos){
                 Formula para la evaluacion sin penalizacion
                 formula 1: Si = Sv / (S+ - S-) 
             */
+            if($userVideos[$video]["star+"] == $userVideos[$video]["star-"]){
+                $videoEval[$name]["eval"] += $userVideos[$video]["view"] / -1;
+            }else{
+                $videoEval[$name]["eval"] += $userVideos[$video]["view"] / ($userVideos[$video]["star+"] - $userVideos[$video]["star-"]);
+            }
             
-            $videoEval[$name]["eval"] += $userVideos[$video]["view"] / ($userVideos[$video]["star+"] - $userVideos[$video]["star-"]);
             $videoEval[$name]["videos"]++;
 
             if($userVideos[$video]["status"] == "B"){
